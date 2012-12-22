@@ -2,7 +2,7 @@
 
 jQuery plugin for making blocks sticky with priority, like fixed menus that float upwards since certain scroll position
 
-## usage
+## Usage
 
 Just pass it a list of conditions, sorted by priority (most important first). Condition is simply alignment and selector, separated by whitespace. 
 
@@ -12,7 +12,7 @@ $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner
 
 The following alignments are supported:
 
-* 'above' 
-* 'below'
-* 'topline'
-* 'bottomline'
+* above 
+* below
+* topline
+* bottomline
