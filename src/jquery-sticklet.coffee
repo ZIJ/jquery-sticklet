@@ -1,6 +1,6 @@
 ##################################
 
-# jQuery Sticklet plugin
+# jQuery Sticklet plugin v2.1
 
 # Usage: $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner', 'bottomline article:last-child');
 
@@ -8,6 +8,8 @@
 ##################################
 
 # Copyright (C) 2012 Igor Zalutsky
+
+# MIT License
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -17,134 +19,112 @@
 
 ##################################
 
-# internal variables, don't change them
+# set of unique sticky blocks with independent conditions
+class TargetSet
+  targets: []
 
-targets = []
+  # updates a registered target or registers a new one
+  # element: jQ object, conditions: array of strings
+  save: (element, conditions) ->
+    id = element.data('stickletId')
+    target = new Target(element, conditions)
+    unless @targets[id]
+      id = @targets.length
+      element.data('stickletId', id)
+      @targets.push(target)
+    else
+      @targets[id] = target
 
-limitRegex = /^(below|above|topline|bottomline)\s+(\S+)$/
+  positionAll: ->
+    for target in @targets
+      target.position()
 
-win = $(window)
 
-lastScroll = null
+# single sticky block
+class Target
+  # element: jQ object, conditions: array of restriction-describing strings
+  constructor: (element, conditions) ->
+    @element = element.first() or $([])
+    @restrictions =
+      (for condition in conditions
+        new Restriction(@, condition))
+
+  # stick element according to one of given conditions
+  position: ->
+    range = @getRange()
+    if range.stickTo == 'top'
+      @element.offset(top: range.min)
+    else
+      @element.offset(top: range.max)
+
+  # calculate bounding range using all restrictions
+  getRange: ->
+    finalRange = new Range
+    for restriction in @restrictions
+      range = restriction.calculate()
+      if range.stickTo == 'top'
+        if range.min <= finalRange.max
+          finalRange.min = Math.max(range.min, finalRange.min)
+          finalRange.stickTo = 'top'
+        else
+          return finalRange
+      else
+        if range.max >= finalRange.min
+          finalRange.max = Math.min(range.max, finalRange.max)
+          finalRange.stickTo = 'bottom'
+        else
+          return finalRange
+    finalRange
+
+
+# single positioning rule
+class Restriction
+  @regex: /^(below|above|topline|bottomline)\s+(\S+)$/
+
+  constructor: (target, condition) ->
+    @target = target
+    @condition = condition
+    match = Restriction.regex.exec(condition)
+    @position = match[1]
+    @selector = match[2]
+    @element = $(@selector)
+
+  # evaluate bounding range for current restriction
+  calculate: ->
+    rangeMap =
+      below: =>
+        min: @element.offset().top + @element.height()
+        stickTo: 'top'
+      topLine: =>
+        min: @element.offset().top
+        stickTo: 'top'
+      above: =>
+        max: @element.offset().top - @target.element.height()
+        stickTo: 'bottom'
+      bottomLine: =>
+        max: @element.offset().top + @element.height() - @target.element.height()
+        stickTo: 'bottom'
+    new Range rangeMap[@position]()
+
+
+# positioning interval for a particular target and restriction
+class Range
+  constructor: (options) ->
+    @min = (options.min if options) or -Number.MAX_VALUE
+    @max = (options.max if options) or Number.MAX_VALUE
+    @stickTo = (options.stickTo if options) or 'top'
+
+targets = new TargetSet()
 
 # plugin binding
 $.fn.sticklet = ->
-
-  limits = []
-  for str in arguments
-    limit = parseLimit(str)
-    if limit.element.length > 0
-      limits.push(limit)
-
-
+  conditions = arguments
   @each ->
-    el = $(@)
-    id = el.data('stickletId')
+    targets.save($(@), conditions)
 
-    # registering target element
-    if not targets[id]
-      id = targets.length
-      el.data('sticklet-id', id)
-      targets.push
-        element: el,
-        initialTop: Number(el.css('top'))
-
-    # updating limits
-    targets[id].limits = limits
-
-  activate()
-
-  # maintaining chainability
-  return @
-
-# attach handler
-activate = ->
-  win.on 'scroll', onScroll
-
-# detach handler
-deactivate = ->
-  win.off 'scroll', onScroll
-
-# scroll event handler that avoids unnecessary computations in case of smooth scrolling
-onScroll = ->
-  scroll = win.scrollTop()
-  if scroll != lastScroll
-    for target in targets
-      position(target)
-    lastScroll = scroll
-
-# change target's offset according to limits
-position = (target) ->
-  conditions =
-    (for limit in target.limits
-      calculateLimit(target.element, limit)
-    )
-
-  bounds = intersect(conditions)
-  console.log(bounds)
-  applyBounds(target, bounds)
-
-# set element's offset according to directional bounding rule
-applyBounds = (target, bounds) ->
-  if bounds.reverse
-    target.element.offset(top: bounds.max)
-  else
-    target.element.offset(top: bounds.min)
-
-# create a final directional rule from conditions according to their priority
-intersect = (conditions) ->
-  bounds =
-    min: Number.MIN_VALUE,
-    max: Number.MAX_VALUE
-
-  for rule in conditions
-    if not rule.reverse
-      if rule.min <= bounds.max
-        bounds.min = Math.max(bounds.min, rule.min)
-        bounds.reverse = false
-      else
-        return bounds
-    else
-      if rule.max >= bounds.min
-        bounds.max = Math.min(bounds.max, rule.max)
-        bounds.reverse = true
-      else
-        return bounds
-  return bounds
+# scroll binding
+$(window).scroll ->
+  targets.positionAll()
 
 
-# convert limits to directional conditions using current element position
-calculateLimit = (target, limit) ->
-  limitTop = limit.element.offset().top
-  limitHeight = limit.element.height()
-  targetHeight = target.height()
-  if limit.position == 'below'
-    return {
-    min: limitTop + limitHeight,
-    reverse: false
-    }
-  if limit.position == 'topline'
-    return {
-    min: limitTop,
-    reverse: false
-    }
-  if limit.position == 'above'
-    return {
-    max: limitTop - targetHeight
-    reverse: true
-    }
-  if limit.position == 'bottomline'
-    return {
-    max: limitTop + limitHeight - targetHeight,
-    reverse: true
-    }
 
-# convert string limitation to descriptor object
-parseLimit = (str) ->
-  # TODO add validation in parseLimit
-  match = limitRegex.exec(str)
-  selector = match[2]
-  return {
-  position: match[1]
-  element: $(selector)
-  }
