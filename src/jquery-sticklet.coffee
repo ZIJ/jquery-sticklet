@@ -1,19 +1,27 @@
 ##################################
 
-# jQuery Sticklet plugin v2.1
+# jQuery Sticklet plugin v2.3
 
 # Usage: $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner', 'bottomline article:last-child')
 
 # http://github.com/ZIJ/jquery-sticklet
 
 
+## Classes #######################
+
+
 # set of unique sticky blocks with independent conditions
 class TargetSet
-  targets: []
+  @targets: []
+
+  @_active: false
+  @_lastScroll: NaN
+  @_window: $(window)
+
 
   # updates a registered target or registers a new one
   # element: jQ object, conditions: array of strings
-  save: (element, conditions) ->
+  @save: (element, conditions) ->
     id = element.data('stickletId')
     target = new Target(element, conditions)
     unless @targets[id]
@@ -23,9 +31,34 @@ class TargetSet
     else
       @targets[id] = target
 
-  positionAll: ->
+  # performs repositioning of all targets
+  @positionAll: ->
     for target in @targets
       target.position()
+
+  # starts listening to 'scroll' event
+  @activate: ->
+    unless @_active
+      @_window.on 'scroll', @_onScroll
+      @_active = true
+
+  # stops listening to 'scroll' event
+  @deactivate: ->
+    @_window.off 'scroll', @_onScroll
+    @_active = false
+
+  # removes all targets and restores their initial position
+  @clear: ->
+    for target in @targets
+      target.reset()
+    @targets = []
+
+  # handles 'scroll' event, does repositioning on every actual scrollTop change
+  @_onScroll: =>
+    scrollTop = @_window.scrollTop()
+    if scrollTop != @_lastScroll
+      @positionAll()
+      @_lastScroll = scrollTop
 
 
 # single sticky block
@@ -33,6 +66,7 @@ class Target
 # element: jQ object, conditions: array of restriction-describing strings
   constructor: (element, conditions) ->
     @element = element.first() or $([])
+    @initialOffset = @element.offset().top
     @restrictions = []
     for condition in conditions
       restriction = new Restriction(@, condition)
@@ -65,6 +99,10 @@ class Target
         else
           return finalRange
     finalRange
+
+  # restore initial position
+  reset: ->
+    @element.offset(top: @initialOffset)
 
 
 # single positioning rule
@@ -104,14 +142,18 @@ class Range
     @max = (options.max if options) or Number.MAX_VALUE
     @stickTo = (options.stickTo if options) or 'top'
 
-targets = new TargetSet()
+## Plugin binding ###################
 
-# plugin binding
+# apply sticky behavior
 $.fn.sticklet = ->
   conditions = arguments
+  TargetSet.deactivate()
   @each ->
-    targets.save($(@), conditions)
+    TargetSet.save($(@), conditions)
+  TargetSet.activate()
 
-# scroll binding
-$(window).scroll ->
-  targets.positionAll()
+# remove all sticky behaviors
+$.fn.unsticklet = ->
+  TargetSet.deactivate()
+  TargetSet.clear()
+
