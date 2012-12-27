@@ -2,22 +2,10 @@
 
 # jQuery Sticklet plugin v2.1
 
-# Usage: $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner', 'bottomline article:last-child');
+# Usage: $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner', 'bottomline article:last-child')
 
+# http://github.com/ZIJ/jquery-sticklet
 
-##################################
-
-# Copyright (C) 2012 Igor Zalutsky
-
-# MIT License
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-##################################
 
 # set of unique sticky blocks with independent conditions
 class TargetSet
@@ -42,12 +30,14 @@ class TargetSet
 
 # single sticky block
 class Target
-  # element: jQ object, conditions: array of restriction-describing strings
+# element: jQ object, conditions: array of restriction-describing strings
   constructor: (element, conditions) ->
     @element = element.first() or $([])
-    @restrictions =
-      (for condition in conditions
-        new Restriction(@, condition))
+    @restrictions = []
+    for condition in conditions
+      restriction = new Restriction(@, condition)
+      if restriction.element.length > 0
+        @restrictions.push(restriction)
 
   # stick element according to one of given conditions
   position: ->
@@ -95,13 +85,13 @@ class Restriction
       below: =>
         min: @element.offset().top + @element.height()
         stickTo: 'top'
-      topLine: =>
+      topline: =>
         min: @element.offset().top
         stickTo: 'top'
       above: =>
         max: @element.offset().top - @target.element.height()
         stickTo: 'bottom'
-      bottomLine: =>
+      bottomline: =>
         max: @element.offset().top + @element.height() - @target.element.height()
         stickTo: 'bottom'
     new Range rangeMap[@position]()
@@ -125,6 +115,3 @@ $.fn.sticklet = ->
 # scroll binding
 $(window).scroll ->
   targets.positionAll()
-
-
-
