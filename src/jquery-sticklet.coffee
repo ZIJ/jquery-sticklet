@@ -1,6 +1,6 @@
 ##################################
 
-# jQuery Sticklet plugin v2.3
+# jQuery Sticklet plugin v2.3.1
 
 # Usage: $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner', 'bottomline article:last-child')
 
@@ -147,13 +147,16 @@ class Range
 # apply sticky behavior
 $.fn.sticklet = ->
   conditions = arguments
+  jq = $(@)
   TargetSet.deactivate()
   @each ->
-    TargetSet.save($(@), conditions)
+    TargetSet.save(jq, conditions)
   TargetSet.activate()
+  jq
 
 # remove all sticky behaviors
-$.fn.unsticklet = ->
+$.unsticklet = ->
   TargetSet.deactivate()
   TargetSet.clear()
+  $
 
