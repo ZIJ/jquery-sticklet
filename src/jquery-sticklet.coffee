@@ -1,6 +1,6 @@
 ##################################
 
-# jQuery Sticklet plugin v2.3.1
+# jQuery Sticklet plugin v2.4.2
 
 # Usage: $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner', 'bottomline article:last-child')
 
@@ -16,7 +16,8 @@ class TargetSet
 
   @_active: false
   @_lastScroll: NaN
-  @_window: $(window)
+  @window: $(window)
+  @document: $(document)
 
 
   # updates a registered target or registers a new one
@@ -30,6 +31,7 @@ class TargetSet
       @targets.push(target)
     else
       @targets[id] = target
+    @positionAll()
 
   # performs repositioning of all targets
   @positionAll: ->
@@ -39,12 +41,12 @@ class TargetSet
   # starts listening to 'scroll' event
   @activate: ->
     unless @_active
-      @_window.on 'scroll', @_onScroll
+      @window.on 'scroll', @_onScroll
       @_active = true
 
   # stops listening to 'scroll' event
   @deactivate: ->
-    @_window.off 'scroll', @_onScroll
+    @window.off 'scroll', @_onScroll
     @_active = false
 
   # removes all targets and restores their initial position
@@ -55,7 +57,7 @@ class TargetSet
 
   # handles 'scroll' event, does repositioning on every actual scrollTop change
   @_onScroll: =>
-    scrollTop = @_window.scrollTop()
+    scrollTop = @window.scrollTop()
     if scrollTop != @_lastScroll
       @positionAll()
       @_lastScroll = scrollTop
@@ -66,6 +68,7 @@ class Target
 # element: jQ object, conditions: array of restriction-describing strings
   constructor: (element, conditions) ->
     @element = element.first() or $([])
+    @element.css('position', 'fixed')
     @initialOffset = @element.offset().top
     @restrictions = []
     for condition in conditions
@@ -76,10 +79,13 @@ class Target
   # stick element according to one of given conditions
   position: ->
     range = @getRange()
+    win = TargetSet.window
+    doc = TargetSet.document
+    correction = Math.max 0, Math.min win.scrollTop(), doc.height() - win.height()
     if range.stickTo == 'top'
-      @element.offset(top: range.min)
+      @element.offset(top: range.min - correction)
     else
-      @element.offset(top: range.max)
+      @element.offset(top: range.max - correction)
 
   # calculate bounding range using all restrictions
   getRange: ->
@@ -147,16 +153,8 @@ class Range
 # apply sticky behavior
 $.fn.sticklet = ->
   conditions = arguments
-  jq = $(@)
   TargetSet.deactivate()
   @each ->
-    TargetSet.save(jq, conditions)
+    TargetSet.save($(@), conditions)
   TargetSet.activate()
-  jq
-
-# remove all sticky behaviors
-$.unsticklet = ->
-  TargetSet.deactivate()
-  TargetSet.clear()
-  $
-
+  @
