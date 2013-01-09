@@ -16,6 +16,8 @@
 
     TargetSet.document = $(document);
 
+    TargetSet.firefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+
     TargetSet.save = function(element, conditions) {
       var id, target;
       id = element.data('stickletId');
@@ -98,15 +100,18 @@
       range = this.getRange();
       win = TargetSet.window;
       doc = TargetSet.document;
-      correction = Math.max(0, Math.min(win.scrollTop(), doc.height() - win.height()));
+      correction = TargetSet.firefox ? 0 : Math.max(0, Math.min(win.scrollTop(), doc.height() - win.height()));
+      console.log('correction ' + correction);
       if (range.stickTo === 'top') {
-        return this.element.offset({
+        this.element.offset({
           top: range.min - correction
         });
+        return console.log('min ' + range.min);
       } else {
-        return this.element.offset({
+        this.element.offset({
           top: range.max - correction
         });
+        return console.log('max ' + range.max);
       }
     };
 

@@ -1,6 +1,6 @@
 ##################################
 
-# jQuery Sticklet plugin v2.4.2
+# jQuery Sticklet plugin v2.4.3
 
 # Usage: $('#selector').sticklet('above footer', 'below #sticky-header', 'topline .banner', 'bottomline article:last-child')
 
@@ -18,6 +18,7 @@ class TargetSet
   @_lastScroll: NaN
   @window: $(window)
   @document: $(document)
+  @firefox: navigator.userAgent.toLowerCase().indexOf('firefox') > -1
 
 
   # updates a registered target or registers a new one
@@ -81,11 +82,18 @@ class Target
     range = @getRange()
     win = TargetSet.window
     doc = TargetSet.document
-    correction = Math.max 0, Math.min win.scrollTop(), doc.height() - win.height()
+    correction =
+      if TargetSet.firefox
+        0
+      else
+        Math.max 0, Math.min win.scrollTop(), doc.height() - win.height()
+    console.log('correction ' + correction)
     if range.stickTo == 'top'
       @element.offset(top: range.min - correction)
+      console.log('min ' + range.min)
     else
       @element.offset(top: range.max - correction)
+      console.log('max ' + range.max)
 
   # calculate bounding range using all restrictions
   getRange: ->
